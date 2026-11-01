@@ -1743,6 +1743,29 @@ class HttpClientTest extends TestCase
         throw tap(new RequestException(new Response($response)), fn ($exception) => $exception->report());
     }
 
+    public function testRequestExceptionWithCustomTruncatedSummaryWithHeaders()
+    {
+        RequestException::truncateAt(60, withHeaders: true);
+
+        $response = new Psr7Response(403, ['Content-Type' => 'application/json', 'Retry-After' => '60'], json_encode(['error' => str_repeat('a', 200)]));
+
+        $exception = new RequestException(new Response($response));
+
+        $this->assertSame(
+            "HTTP request returned status code 403:\nHTTP/1.1 403 Forbidden\r\nContent-Type: application/json\r\nRetry-After: 60\r\n\r\n{\"error\":\"".str_repeat('a', 50)." (truncated...)\n",
+            $exception->getMessage()
+        );
+
+        RequestException::truncate();
+
+        $exception = new RequestException(new Response($response));
+
+        $this->assertSame(
+            "HTTP request returned status code 403:\n{\"error\":\"".str_repeat('a', 110)." (truncated...)\n",
+            $exception->getMessage()
+        );
+    }
+
     public function testRequestLevelTruncationLevelOnRequestException()
     {
         RequestException::truncateAt(60);
