@@ -3,6 +3,7 @@
 namespace Illuminate\Http\Client;
 
 use GuzzleHttp\Psr7\Message;
+use GuzzleHttp\Psr7\Utils;
 
 class RequestException extends HttpClientException
 {
@@ -26,6 +27,13 @@ class RequestException extends HttpClientException
      * @var int|false
      */
     public static $truncateAt = 120;
+
+    /**
+     * Whether truncated exception messages should include the response headers.
+     *
+     * @var bool
+     */
+    public static $truncateWithHeaders = false;
 
     /**
      * Whether the response has been summarized in the message.
@@ -57,17 +65,20 @@ class RequestException extends HttpClientException
     public static function truncate()
     {
         static::$truncateAt = 120;
+        static::$truncateWithHeaders = false;
     }
 
     /**
      * Set the truncation length for request exception messages.
      *
      * @param  int  $length
+     * @param  bool  $withHeaders
      * @return void
      */
-    public static function truncateAt(int $length)
+    public static function truncateAt(int $length, bool $withHeaders = false)
     {
         static::$truncateAt = $length;
+        static::$truncateWithHeaders = $withHeaders;
     }
 
     /**
@@ -114,6 +125,10 @@ class RequestException extends HttpClientException
 
         if (is_int($truncateExceptionsAt)) {
             $summary = Message::bodySummary($psrResponse, $truncateExceptionsAt);
+
+            if (static::$truncateWithHeaders && ! is_null($summary)) {
+                $summary = Message::toString($psrResponse->withBody(Utils::streamFor(''))).$summary;
+            }
         } elseif (($body = $psrResponse->getBody())->isSeekable() && $body->isReadable()) {
             $summary = Message::toString($psrResponse);
         }
